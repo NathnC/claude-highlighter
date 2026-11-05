@@ -1,0 +1,11 @@
+{
+  "name": "highlighter",
+  "version": "0.1.0",
+  "description": "Colour-highlights what matters in Claude's replies: critical warnings, things you need to do, questions and changes. Colours and rules are yours to edit.",
+  "author": { "name": "Nathan" },
+  "homepage": "https://github.com/NathnC/claude-highlighter",
+  "repository": "https://github.com/NathnC/claude-highlighter",
+  "license": "MIT",
+  "keywords": ["highlight", "output", "terminal", "colour", "ui"],
+  "types": "./types/index.d.ts"
+}

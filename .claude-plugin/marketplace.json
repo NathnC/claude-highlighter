@@ -1,0 +1,14 @@
+{
+  "name": "claude-highlighter",
+  "description": "Highlighter for Claude Code",
+  "owner": { "name": "Nathan" },
+  "plugins": [
+    {
+      "name": "highlighter",
+      "description": "Colour-highlights what matters in Claude's replies: critical warnings, things you need to do, questions and changes.",
+      "version": "0.1.0",
+      "source": "./",
+      "category": "productivity"
+    }
+  ]
+}
