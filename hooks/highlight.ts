@@ -346,6 +346,28 @@ export function classify(text: string, config: HighlighterConfig): Classified {
   }
 }
 
+export type HitItem = { marker: string; body: string }
+
+export type Block =
+  | { kind: 'plain'; text: string; gapBefore: boolean }
+  | { kind: 'group'; id: string; items: HitItem[]; gapBefore: boolean }
+
+/** Neighbouring lines of one category share a badge, so three caveats are not three alarms. */
+export function groupHits(segments: Segment[]): Block[] {
+  const blocks: Block[] = []
+  for (const segment of segments) {
+    if (segment.kind === 'plain') {
+      blocks.push(segment)
+      continue
+    }
+    const item = { marker: segment.marker, body: segment.body }
+    const last = blocks.at(-1)
+    if (last?.kind === 'group' && last.id === segment.id) last.items.push(item)
+    else blocks.push({ kind: 'group', id: segment.id, items: [item], gapBefore: segment.gapBefore })
+  }
+  return blocks
+}
+
 export type InlineRun = { text: string; bold?: boolean; italic?: boolean; code?: boolean }
 
 const INLINE = /(\*\*|__)(.+?)\1|`([^`]+)`|(?<![\w*])\*([^*\s][^*]*?)\*(?![\w*])|\[([^\]]+)\]\(([^)\s]+)\)/g

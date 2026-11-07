@@ -1,6 +1,6 @@
 {
   "name": "highlighter",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Colour-highlights what matters in Claude's replies: critical warnings, things you need to do, questions and changes. Colours and rules are yours to edit.",
   "author": { "name": "Nathan" },
   "homepage": "https://github.com/NathnC/claude-highlighter",

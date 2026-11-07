@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { DEFAULT_CONFIG, classify, mergeConfig, normalizeColor, parseInline, tagInstructions, withoutLabel } from '../hooks/highlight'
+import { DEFAULT_CONFIG, classify, groupHits, mergeConfig, normalizeColor, parseInline, tagInstructions, withoutLabel } from '../hooks/highlight'
 
 const ids = (text: string, config = DEFAULT_CONFIG) =>
   classify(text, config).segments.flatMap(s => (s.kind === 'hit' ? [s.id] : []))
@@ -89,6 +89,32 @@ test('blank lines become gaps around highlights', () => {
   expect(segments.map(s => s.gapBefore)).toEqual([false, true, true])
 })
 
+const shape = (text: string) =>
+  groupHits(classify(text, DEFAULT_CONFIG).segments).map(b => (b.kind === 'plain' ? 'plain' : `${b.id}:${b.items.length}`))
+
+test('neighbouring lines of one category group, whatever the blank lines between them', () => {
+  expect(shape('[!warning] a\n[!warning] b\n[!warning] c')).toEqual(['warning:3'])
+  expect(shape('- [!warning] a\n\n- [!warning] b')).toEqual(['warning:2'])
+})
+
+test('a different category or ordinary text ends a group', () => {
+  expect(shape('[!warning] a\n[!action] b\n[!warning] c')).toEqual(['warning:1', 'action:1', 'warning:1'])
+  expect(shape('[!warning] a\nwords\n[!warning] b')).toEqual(['warning:1', 'plain', 'warning:1'])
+})
+
+test('a group keeps each line and the gap before its first', () => {
+  const [, group] = groupHits(classify('Intro\n\n1. [!action] a\n2. [!action] b', DEFAULT_CONFIG).segments)
+  expect(group).toEqual({
+    kind: 'group',
+    id: 'action',
+    gapBefore: true,
+    items: [
+      { marker: '1. ', body: 'a' },
+      { marker: '2. ', body: 'b' },
+    ],
+  })
+})
+
 test('the config overlays the defaults and reports what it cannot use', () => {
   const { config, problems } = mergeConfig({
     digest: { maxItems: 2 },
@@ -166,6 +192,19 @@ test('a reply with something flagged is drawn with its label on every surface', 
     expect(await ui.find({ type: 'Text', text: /engine/ })).toBeUndefined()
     await ui.unmount()
   }
+})
+
+test('a run of warnings wears one badge and keeps every line', async ($, on) => {
+  on('ui.render', ($, e) => {
+    const { Text } = $.ui.resolve(e)
+    return <Text>engine</Text>
+  })
+  const ui = await $.ui.mount(message('[!warning] First\n[!warning] Second\n[!warning] Third\n\n[!action] Do it', 'terminal'))
+  const texts = (await ui.findAll({ type: 'Text' })).map(t => t.text)
+  expect(texts.filter(t => t === ' WARNING ').length).toBe(1)
+  expect(texts.filter(t => t === ' ACTION ').length).toBe(1)
+  for (const line of ['First', 'Second', 'Third', 'Do it']) expect(texts).toContain(line)
+  await ui.unmount()
 })
 
 test('a reply with nothing flagged goes to the engine as it was', async ($, on) => {

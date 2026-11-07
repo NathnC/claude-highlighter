@@ -6,7 +6,7 @@
     {
       "name": "highlighter",
       "description": "Colour-highlights what matters in Claude's replies: critical warnings, things you need to do, questions and changes.",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "source": "./",
       "category": "productivity"
     }

@@ -2,7 +2,8 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
 import type { HighlighterCategory, HighlighterConfig, HighlighterDigestItem } from '../types'
-import { DEFAULT_CONFIG, classify, mergeConfig, normalizeColor, listNumber, parseInline, plainText, tagInstructions, withoutLabel } from './highlight'
+import { DEFAULT_CONFIG, classify, groupHits, mergeConfig, normalizeColor, listNumber, parseInline, plainText, tagInstructions, withoutLabel } from './highlight'
+import type { HitItem } from './highlight'
 
 const configAtom = atom({ plugin: 'highlighter', key: 'config' } as const, null)
 const digestAtom = atom({ plugin: 'highlighter', key: 'digest' } as const, [])
@@ -214,12 +215,17 @@ export const register: Register = on => {
           <Text>{e.props.isFirstOfReply ? '● ' : '  '}</Text>
         </Box>
         <Box flexDirection="column" flexGrow={1} flexShrink={1}>
-          {segments.map(segment => (
-            <Box marginTop={segment.gapBefore ? 1 : 0}>
-              {segment.kind === 'plain' ? (
-                <Markdown text={segment.text} />
+          {groupHits(segments).map(block => (
+            <Box flexDirection="column" marginTop={block.gapBefore ? 1 : 0}>
+              {block.kind === 'plain' ? (
+                <Markdown text={block.text} />
               ) : (
-                hitRow(Box, Text, segment.marker, segment.body, config.categories[segment.id]!, config.style)
+                block.items.map((item, index) =>
+                  hitRow(Box, Text, item, config.categories[block.id]!, config.style, {
+                    isGroupFollower: index > 0,
+                    isGrouped: block.items.length > 1,
+                  }),
+                )
               )}
             </Box>
           ))}
@@ -239,7 +245,7 @@ export const register: Register = on => {
         <Box flexDirection="column" marginTop={1}>
           {Object.entries(config.categories).map(([id, category]) =>
             category.enabled ? (
-              hitRow(Box, Text, '', `\`[!${id}]\` ${category.description}`, category, config.style)
+              hitRow(Box, Text, { marker: '', body: `\`[!${id}]\` ${category.description}` }, category, config.style)
             ) : (
               <Text dimColor>
                 {BAR}
@@ -277,19 +283,34 @@ export const register: Register = on => {
   })
 }
 
-/** A highlighted line: bar, label, then the words. Wrapped rows hang under the words. */
-function hitRow(Box: any, Text: any, marker: string, body: string, category: HighlighterCategory, style: HighlighterConfig['style']) {
+/**
+ * A highlighted line: bar, label, then the words. Wrapped rows hang under the words.
+ * In a group only the first line wears the label, the rest line up beneath it, and each
+ * line takes a bullet so wrapped lines can still be told apart.
+ */
+function hitRow(
+  Box: any,
+  Text: any,
+  { marker, body }: HitItem,
+  category: HighlighterCategory,
+  style: HighlighterConfig['style'],
+  { isGrouped = false, isGroupFollower = false }: { isGrouped?: boolean; isGroupFollower?: boolean } = {},
+) {
   const paint = style === 'line' ? { color: category.color, backgroundColor: category.background } : {}
+  const lead = listNumber(marker) || (isGrouped ? '• ' : '')
+  const badge = category.label === '' ? '' : ` ${category.label} `
   return (
     <Box flexDirection="row">
       <Box flexShrink={0}>
         <Text color={category.color}>{BAR}</Text>
-        {category.label !== '' ? (
+        {badge === '' ? null : isGroupFollower ? (
+          <Text>{' '.repeat(badge.length)}</Text>
+        ) : (
           <Text color={category.color} weight="bold" inverse>
-            {` ${category.label} `}
+            {badge}
           </Text>
-        ) : null}
-        <Text> {listNumber(marker)}</Text>
+        )}
+        <Text> {lead}</Text>
       </Box>
       <Box flexShrink={1} flexGrow={1}>
         <Text {...paint} weight={category.bold ? 'bold' : undefined}>
