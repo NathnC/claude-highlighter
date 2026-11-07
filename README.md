@@ -47,7 +47,7 @@ Add your own categories in the config file.
 2. **Rules catch the rest.** If a reply has no tags at all, regex rules look at the start of each line for things like `Warning:`, `You need to` or `Fixed`. Replies that do have tags skip the rules, so they stay precise.
 3. **Long replies get a recap.** After a reply of 12 lines or more, the `critical`, `action` and `question` lines are repeated just above the prompt until you send your next message.
 
-Neighbouring lines of the same category share one badge, so three caveats in a row read as one warning.
+Neighbouring lines of the same category share one label, in the reply and in the recap, so three caveats in a row read as one warning.
 
 Replies with nothing to highlight are drawn exactly as Claude Code draws them. Code blocks and tables are never touched.
 

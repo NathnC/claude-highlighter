@@ -268,13 +268,16 @@ export const register: Register = on => {
     return (
       <Box flexDirection="column">
         <Text dimColor>In that reply, for you:</Text>
-        {items.map(item => {
+        {items.map((item, index) => {
           const category = config.categories[item.id]
           if (category === undefined) return <Text wrap="truncate-end">{item.text}</Text>
+          const isFollower = items[index - 1]?.id === item.id
+          const isGrouped = isFollower || items[index + 1]?.id === item.id
           return (
             <Text wrap="truncate-end" color={category.color}>
               {BAR}
-              <Text weight="bold">{category.label}</Text> {item.text}
+              <Text weight="bold">{isFollower ? ' '.repeat(category.label.length) : category.label}</Text> {isGrouped ? '• ' : ''}
+              {item.text}
             </Text>
           )
         })}

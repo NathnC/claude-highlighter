@@ -207,6 +207,23 @@ test('a run of warnings wears one badge and keeps every line', async ($, on) => 
   await ui.unmount()
 })
 
+test('the recap gives a run of one category a single label', async ($, on) => {
+  const digest = [
+    { id: 'critical', text: 'Back it up' },
+    { id: 'action', text: 'Run it' },
+    { id: 'action', text: 'Set it' },
+    { id: 'question', text: 'Keep it?' },
+  ]
+  on('state.get', ($, e, next) => (e.key === 'digest' ? { value: { value: digest, version: 1 } } : next(e)))
+  const ui = await $.ui.mount({ plugin: 'highlighter', surface: 'terminal', component: 'AbovePrompt', props: { hasSurvey: false, isWorking: false } } as any)
+  const lines = (await ui.findAll({ type: 'Text' })).map(t => t.text)
+  expect(lines.filter(t => /Back it up/.test(t))).toEqual(['▌ CRITICAL Back it up'])
+  expect(lines.filter(t => /Run it/.test(t))).toEqual(['▌ ACTION • Run it'])
+  expect(lines.filter(t => /Set it/.test(t))).toEqual(['▌        • Set it'])
+  expect(lines.filter(t => /Keep it/.test(t))).toEqual(['▌ QUESTION Keep it?'])
+  await ui.unmount()
+})
+
 test('a reply with nothing flagged goes to the engine as it was', async ($, on) => {
   on('ui.render', ($, e) => {
     const { Text } = $.ui.resolve(e)
