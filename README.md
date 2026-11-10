@@ -27,7 +27,7 @@ Or type this at the Claude Code prompt:
 /plugin install highlighter --marketplace NathnC/claude-highlighter
 ```
 
-Tested on Claude Code 2.1.316. It uses the function hooks plugin API, which is still in early access, so a future Claude Code release could break it.
+Tested on Claude Code 2.1.321. It uses the function hooks plugin API, which is still in early access, so a future Claude Code release could break it.
 
 ## What gets highlighted
 
@@ -43,7 +43,7 @@ Add your own categories in the config file.
 
 ## How it works
 
-1. **Claude tags the lines.** The plugin adds a short section to the system prompt asking Claude to start key lines with a tag such as `[!action]`. The tag is hidden when the line is drawn.
+1. **Claude tags the lines.** The plugin sends a short note alongside your first prompt asking Claude to start key lines with a tag such as `[!action]`. The tag is hidden when the line is drawn.
 2. **Rules catch the rest.** If a reply has no tags at all, regex rules look at the start of each line for things like `Warning:`, `You need to` or `Fixed`. Replies that do have tags skip the rules, so they stay precise.
 3. **Long replies get a recap.** After a reply of 12 lines or more, the `critical`, `action` and `question` lines are repeated just above the prompt until you send your next message.
 
@@ -120,9 +120,9 @@ Settings live in `~/.claude/highlighter.json` (or `$CLAUDE_CONFIG_DIR/highlighte
 
 ## Good to know
 
-- **Token cost:** the system prompt section is about 350 tokens per session, and it is cached like the rest of the prompt.
-- **Mid-session changes:** Claude only learns about a category you add by hand in your next session. Changes made with `/highlighter` reach it straight away.
-- **`claude -p` and scripts:** the section is not added in headless runs, so Claude does not write tags into piped output.
+- **Token cost:** the note is about 350 tokens. It is sent once per conversation, and again after a compaction, `/clear` or a config change.
+- **Mid-session changes:** Claude learns about a category you add by hand with your next prompt. Changes made with `/highlighter` reach it straight away.
+- **`claude -p` and scripts:** the note is not sent in headless runs, so Claude does not write tags into piped output.
 - **Raw view:** the stored message keeps its tags, so you will see them in the ctrl+o transcript.
 - **Highlighted lines:** they are drawn as plain coloured text, so a link appears as `label (url)`.
 - **Between tool calls:** the rules can also match short messages Claude writes mid-task. If that is too noisy, run `/highlighter rules off`.

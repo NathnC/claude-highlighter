@@ -12,6 +12,17 @@ const BAR = '▌ '
 
 let problems: string[] = []
 
+/**
+ * What the conversation was last told, and how long it was then. The context a
+ * prompt carries is not in `$.session.messages()`, so a shorter transcript is
+ * how a compaction or `/clear` is noticed.
+ */
+let taught: { text: string; length: number } | null = null
+
+async function transcriptLength($: EngineInterface): Promise<number> {
+  return (await $.session.messages()).length
+}
+
 async function configPath($: EngineInterface): Promise<string> {
   const dir = await $.env.get('CLAUDE_CONFIG_DIR')
   if (dir) return `${dir.replace(/[\\/]+$/, '')}/highlighter.json`
@@ -83,7 +94,8 @@ async function runCommand($: EngineInterface, args: string): Promise<{ text: str
   const apply = async (change: (file: Record<string, any>) => void, said: string) => {
     await editFile($, change)
     const fresh = await loadConfig($)
-    // A running thread keeps the system prompt it started with, so the model hears it here.
+    // The model hears the change here, so the next prompt need not repeat it.
+    taught = fresh.enabled ? { text: tagInstructions(fresh, path), length: await transcriptLength($) } : null
     return {
       text: said,
       context: [fresh.enabled ? tagInstructions(fresh, path) : 'Highlighter is off: stop writing [!tag] prefixes.'],
@@ -173,28 +185,31 @@ export const register: Register = on => {
 
   on('prompt.submit', async ($, e, next) => {
     // Hand edits to the file take effect here, and the last digest is done with.
-    await loadConfig($)
+    const config = await loadConfig($)
     await update($, digestAtom, current => (current.length === 0 ? current : []))
-    return next(e)
-  })
 
-  on('prompt.compose', async ($, e, next) => {
-    const result = await next(e)
-    const isHeadless = e.surfaces.length === 0 || e.traits.some(t => t === 'print' || t === 'teammate' || t === 'analysis' || t === 'sdk-preset')
-    const config = await readConfig($)
-    if (isHeadless || !config.enabled) return result
-    return {
-      sections: [
-        ...result.sections,
-        { id: 'highlighter:tags', text: tagInstructions(config, await configPath($)), scope: 'session' as const },
-      ],
+    // The tags are taught beside a prompt, not in the system prompt: Claude Code's
+    // security default keeps `prompt.compose` from the plugins a person installs.
+    const isHeadless = (await $.session.surfaces()).length === 0
+    if (isHeadless || !config.enabled) return next(e)
+    const text = tagInstructions(config, await configPath($))
+    const length = await transcriptLength($)
+    if (taught !== null && taught.text === text && length >= taught.length) {
+      taught = { text, length }
+      return next(e)
     }
+    taught = { text, length }
+    return next({ ...e, context: [...(e.context ?? []), text] })
   })
 
   on('turn.complete', async ($, e, next) => {
-    if (e.agentId === undefined && e.reason === 'answer') {
-      const items = digestOf(e.answer, await readConfig($))
-      await update($, digestAtom, () => items)
+    if (e.agentId === undefined) {
+      // A transcript that got shorter was compacted or cleared, and the tags went with it.
+      if (taught !== null && (await transcriptLength($)) < taught.length) taught = null
+      if (e.reason === 'answer') {
+        const items = digestOf(e.answer, await readConfig($))
+        await update($, digestAtom, () => items)
+      }
     }
     return next(e)
   })
